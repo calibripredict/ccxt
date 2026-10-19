@@ -2773,6 +2773,10 @@
             }
         }
     },
+    "calibri": {
+        "skip": "no public sandbox yet (live private tests need api keys plus a Safe signing key on prod); covered by the static request/response fixtures",
+        "until": "2026-12-31"
+    },
     "predictfun": {
         "skip": "requires apiKeys"
     }
