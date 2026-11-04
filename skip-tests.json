@@ -2774,8 +2774,18 @@
         }
     },
     "calibri": {
-        "skip": "no public sandbox yet (live private tests need api keys plus a Safe signing key on prod); covered by the static request/response fixtures",
-        "until": "2026-12-31"
+        "until": "2026-12-31",
+        "skipMethods": {
+            "orderBook": {
+                "timestamp": "the orderbook endpoint carries no timestamp"
+            },
+            "fetchOrder": { "stopPrice": "prediction orders have no trigger price" },
+            "fetchOrders": { "stopPrice": "prediction orders have no trigger price" },
+            "fetchOpenOrders": { "stopPrice": "prediction orders have no trigger price" },
+            "fetchClosedOrders": { "stopPrice": "prediction orders have no trigger price" },
+            "fetchPositions": { "marginMode": "a prediction position is an outcome-share holding with no margin mode" },
+            "fetchPosition": { "marginMode": "a prediction position is an outcome-share holding with no margin mode" }
+        }
     },
     "predictfun": {
         "skip": "requires apiKeys"
