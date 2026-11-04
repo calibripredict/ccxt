@@ -5,16 +5,14 @@
     "outputType": "json",
     "options": {
         "wallet": {
-            "exchange_address": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
+            "exchange_address": "0xA06be29A9077DA70c70601156aac9F2cE0E3b595",
             "chain_id": 137,
-            "domain_name": "Calibri CTF Exchange",
-            "proxy_address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+            "domain_name": "Calibri CTF Prediction Markets",
+            "proxy_address": "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed",
             "signature_type": 2,
             "safe_status": "ready",
             "owner_address": "0xb67f9a782d3678a0bac50c22eacbb4924fe9d4cf"
-        },
-        "exchangeAddress": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
-        "ctfExchangeName": "Calibri CTF Exchange"
+        }
     },
     "methods": {
         "fetchMarkets": [
@@ -312,16 +310,14 @@
                 ],
                 "options": {
                     "wallet": {
-                        "exchange_address": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
+                        "exchange_address": "0xA06be29A9077DA70c70601156aac9F2cE0E3b595",
                         "chain_id": 137,
-                        "domain_name": "Calibri CTF Exchange",
-                        "proxy_address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+                        "domain_name": "Calibri CTF Prediction Markets",
+                        "proxy_address": "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed",
                         "signature_type": 2,
                         "safe_status": "ready",
                         "owner_address": "0xb67f9a782d3678a0bac50c22eacbb4924fe9d4cf"
-                    },
-                    "exchangeAddress": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
-                    "ctfExchangeName": "Calibri CTF Exchange"
+                    }
                 },
                 "output": {
                     "market_id": 993715,
@@ -335,7 +331,7 @@
                     "client_order_id": "bot-0001",
                     "signed_order": {
                         "salt": "1512366075204170929049582354406559215",
-                        "maker": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+                        "maker": "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed",
                         "signer": "0xb67f9a782D3678a0BAC50C22eacbb4924Fe9D4cF",
                         "taker": "0x0000000000000000000000000000000000000000",
                         "token_id": "46290367595615971082075345757735212412323659961946795890653041366376772822685",
@@ -346,7 +342,7 @@
                         "fee_rate_bps": "0",
                         "side": 0,
                         "signature_type": 2,
-                        "signature": "0x1a357d50fdefd21b928a81abd11588476a025f67f9150bf9115352ff365c14e413cb78f3bab1cddd0a90043a6c0600c3cf716cbdacceed96793ee358c3f2621e1b"
+                        "signature": "0x8cbc9f8715afa12914bb1b74dcc347d2505d7a0ac9f7bfff945da5bd838b2c41099a213340b56add5d08e5b3e2da11b5fddfdba11dba799774046db23154f6331b"
                     }
                 }
             },
@@ -367,16 +363,14 @@
                 ],
                 "options": {
                     "wallet": {
-                        "exchange_address": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
+                        "exchange_address": "0xA06be29A9077DA70c70601156aac9F2cE0E3b595",
                         "chain_id": 137,
-                        "domain_name": "Calibri CTF Exchange",
-                        "proxy_address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+                        "domain_name": "Calibri CTF Prediction Markets",
+                        "proxy_address": "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed",
                         "signature_type": 2,
                         "safe_status": "ready",
                         "owner_address": "0xb67f9a782d3678a0bac50c22eacbb4924fe9d4cf"
-                    },
-                    "exchangeAddress": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
-                    "ctfExchangeName": "Calibri CTF Exchange"
+                    }
                 },
                 "output": {
                     "market_id": 993715,
@@ -389,7 +383,7 @@
                     "ioc": true,
                     "signed_order": {
                         "salt": "1512366075204170929049582354406559215",
-                        "maker": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+                        "maker": "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed",
                         "signer": "0xb67f9a782D3678a0BAC50C22eacbb4924Fe9D4cF",
                         "taker": "0x0000000000000000000000000000000000000000",
                         "token_id": "46290367595615971082075345757735212412323659961946795890653041366376772822685",
@@ -400,7 +394,7 @@
                         "fee_rate_bps": "0",
                         "side": 0,
                         "signature_type": 2,
-                        "signature": "0xc0b7c80a86d6fbf9112bbda5948c92c1805a9d4656debb3d88142a3f52332422491ecf511346e27ae386429a94115383aefafa329ec4ce4c837ba17a752fff911c"
+                        "signature": "0x5290d1a5fc0d0046a28baf1609b6555fc5d5df39e359b42787d8bf244578f6625008c9872b26d3a65a69d052bee371819655fafd87cb8d517854a8441a9b0b621b"
                     }
                 }
             },
@@ -421,15 +415,13 @@
                 ],
                 "options": {
                     "wallet": {
-                        "exchange_address": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
+                        "exchange_address": "0xA06be29A9077DA70c70601156aac9F2cE0E3b595",
                         "chain_id": 137,
-                        "domain_name": "Calibri CTF Exchange",
-                        "proxy_address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+                        "domain_name": "Calibri CTF Prediction Markets",
+                        "proxy_address": "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed",
                         "signature_type": 3,
                         "safe_status": "ready"
-                    },
-                    "exchangeAddress": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
-                    "ctfExchangeName": "Calibri CTF Exchange"
+                    }
                 },
                 "output": {
                     "market_id": 993714,
@@ -442,8 +434,8 @@
                     "ioc": false,
                     "signed_order": {
                         "salt": "1512366075204170929049582354406559215",
-                        "maker": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
-                        "signer": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+                        "maker": "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed",
+                        "signer": "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed",
                         "taker": "0x0000000000000000000000000000000000000000",
                         "token_id": "56117804364142373074919148400268198406202348078678452246765344789609008084552",
                         "maker_amount": "12500000",
@@ -453,7 +445,7 @@
                         "fee_rate_bps": "0",
                         "side": 1,
                         "signature_type": 3,
-                        "signature": "0x9bd6274d5574b4dab619049d01c9095c0860d6535c5be7a5d268e6d058ccdbcb39a9a2103300dc37e66465757b1baae9eacf7117b6c783574ce800b0f4ffe4b81b"
+                        "signature": "0x00a6547cb6b23d780ff100e4dc1152770f819152408e3806e1133f8682d3ad42122bad9da5c8e16be41983e77c5eb0d8d5ad9def857161a9d1fa6314a8da1fde1b"
                     }
                 }
             }
@@ -491,16 +483,14 @@
                 ],
                 "options": {
                     "wallet": {
-                        "exchange_address": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
+                        "exchange_address": "0xA06be29A9077DA70c70601156aac9F2cE0E3b595",
                         "chain_id": 137,
-                        "domain_name": "Calibri CTF Exchange",
-                        "proxy_address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+                        "domain_name": "Calibri CTF Prediction Markets",
+                        "proxy_address": "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed",
                         "signature_type": 2,
                         "safe_status": "ready",
                         "owner_address": "0xb67f9a782d3678a0bac50c22eacbb4924fe9d4cf"
-                    },
-                    "exchangeAddress": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
-                    "ctfExchangeName": "Calibri CTF Exchange"
+                    }
                 },
                 "output": {
                     "orders": [
@@ -515,7 +505,7 @@
                             "ioc": false,
                             "signed_order": {
                                 "salt": "1",
-                                "maker": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+                                "maker": "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed",
                                 "signer": "0xb67f9a782D3678a0BAC50C22eacbb4924Fe9D4cF",
                                 "taker": "0x0000000000000000000000000000000000000000",
                                 "token_id": "46290367595615971082075345757735212412323659961946795890653041366376772822685",
@@ -526,7 +516,7 @@
                                 "fee_rate_bps": "0",
                                 "side": 0,
                                 "signature_type": 2,
-                                "signature": "0xa0a959b57f7cf509fd881eb6eb2a88ac79ba5d485c15c4e8478c264bf3dbf1484940e73cbf66ad403f42b59bfd2c8d777e212e4db9c2d1a027b70517c574b7fa1b"
+                                "signature": "0x0c1ea504500a3966f8148a43ac64a138b44284db818e63531c4101463fa989946e7213348103ed2f4334fa11ffdc71097a4c91a26d792bffd0f10c5d3272ca011b"
                             }
                         },
                         {
@@ -540,7 +530,7 @@
                             "ioc": false,
                             "signed_order": {
                                 "salt": "2",
-                                "maker": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+                                "maker": "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed",
                                 "signer": "0xb67f9a782D3678a0BAC50C22eacbb4924Fe9D4cF",
                                 "taker": "0x0000000000000000000000000000000000000000",
                                 "token_id": "112269125058359687453165521079081312845533508813895586408930599830673309261225",
@@ -551,7 +541,7 @@
                                 "fee_rate_bps": "0",
                                 "side": 0,
                                 "signature_type": 2,
-                                "signature": "0x87a428c7b7a235dc4ac1afb149022b6e101652de264b92fb7e718e705b4ea70d700ab4ad3e6af9057f903064553ba1148439993b970410c7aafcc87df60fa3f01c"
+                                "signature": "0xb4cc54e9a5f9866954a5a8386f81a7f2634734155f2bfdea1d3bccd883c3f98f746f7014c40789220b6ca81d2de33a807ddb5e6ce1e959e8ddea26d0751ac1141c"
                             }
                         }
                     ]
@@ -577,16 +567,14 @@
                 ],
                 "options": {
                     "wallet": {
-                        "exchange_address": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
+                        "exchange_address": "0xA06be29A9077DA70c70601156aac9F2cE0E3b595",
                         "chain_id": 137,
-                        "domain_name": "Calibri CTF Exchange",
-                        "proxy_address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+                        "domain_name": "Calibri CTF Prediction Markets",
+                        "proxy_address": "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed",
                         "signature_type": 2,
                         "safe_status": "ready",
                         "owner_address": "0xb67f9a782d3678a0bac50c22eacbb4924fe9d4cf"
-                    },
-                    "exchangeAddress": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
-                    "ctfExchangeName": "Calibri CTF Exchange"
+                    }
                 },
                 "output": {
                     "market_id": 993715,
@@ -599,7 +587,7 @@
                     "ioc": false,
                     "signed_order": {
                         "salt": "1512366075204170929049582354406559215",
-                        "maker": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+                        "maker": "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed",
                         "signer": "0xb67f9a782D3678a0BAC50C22eacbb4924Fe9D4cF",
                         "taker": "0x0000000000000000000000000000000000000000",
                         "token_id": "46290367595615971082075345757735212412323659961946795890653041366376772822685",
@@ -610,7 +598,7 @@
                         "fee_rate_bps": "0",
                         "side": 0,
                         "signature_type": 2,
-                        "signature": "0x6645168c87f94cc460d7185bf0b1704a2f28523237fcde3172d0e12ef4deda402d00196ac2efff65b5b5f38b2fc9eaa3771ea732dc1639207a2cf182c58ace461c"
+                        "signature": "0xe0d72b7bd55bb6baa84f9402918f8898702919cccda040b6f8e9a983c199a5500cbc4af6ef33a413006492257515eb6983a6efefeb8f253df0af23467074cb1b1c"
                     }
                 }
             }
@@ -712,14 +700,10 @@
         ],
         "approve": [
             {
-                "description": "approve reads the Safe setup of a market",
+                "description": "approve asks the account wallet for its setup",
                 "method": "approve",
-                "url": "https://calibri.io/api/v2/atlas/account/wallet/markets/993715",
-                "input": [
-                    {
-                        "marketId": "993715"
-                    }
-                ]
+                "url": "https://calibri.io/api/v2/atlas/account/wallet?setup=1",
+                "input": []
             }
         ],
         "redeem": [

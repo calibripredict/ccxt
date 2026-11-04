@@ -13,7 +13,7 @@ import type { OrderSide, OrderType, Int, Str, Num, Dict, Bool, Market, OHLCV, Ba
     Account, Currencies, Currency, Transaction, LedgerEntry, PredictionSettlement,
     PredictionTickers, PredictionOrderBook, PredictionOrderRequest, PredictionOpenInterest, PredictionTradingFee,
     PredictionEvent, PredictionTicker, PredictionOrder, PredictionTrade, PredictionPosition, fetchEventsParams } from '../base/types.js';
-import { ArgumentsRequired, BadRequest, BadResponse, AuthenticationError, BadSymbol, InvalidOrder, InsufficientFunds, PermissionDenied, OrderNotFound, ExchangeError, InvalidNonce, DuplicateOrderId, AccountNotEnabled, RateLimitExceeded, NotSupported, OrderNotFillable, ExchangeNotAvailable, OnMaintenance } from '../base/errors.js';
+import { ArgumentsRequired, BadRequest, BadResponse, AuthenticationError, BadSymbol, InvalidOrder, InsufficientFunds, PermissionDenied, OrderNotFound, ExchangeError, InvalidNonce, DuplicateOrderId, AccountNotEnabled, AccountSuspended, RateLimitExceeded, NotSupported, OrderNotFillable, ExchangeNotAvailable, OnMaintenance, OperationFailed, MarketClosed } from '../base/errors.js';
 
 // ---------------------------------------------------------------------------
 
@@ -45,7 +45,7 @@ export default class calibri extends Exchange {
                 'approve': true,
                 'cancelAllOrders': true,
                 'cancelOrder': true,
-                'cancelOrders': true,
+                'cancelOrders': 'emulated',
                 'createMarketBuyOrderWithCost': true,
                 'createOrder': true,
                 'createOrders': true,
@@ -67,7 +67,7 @@ export default class calibri extends Exchange {
                 'fetchOrder': true,
                 'fetchOrderBook': true,
                 'fetchOrders': true,
-                'fetchOrdersByIds': true,
+                'fetchOrdersByIds': 'emulated',
                 'fetchOrderTrades': true,
                 'fetchOutcome': true,
                 'fetchPosition': true,
@@ -189,6 +189,9 @@ export default class calibri extends Exchange {
                     'authz.nonce_expired': InvalidNonce,
                     'authz.nonce_reused': InvalidNonce,
                     'authz.invalid_permission_scope': PermissionDenied,
+                    'authz.invalid_permission': PermissionDenied,
+                    'authz.permission_denied': PermissionDenied,
+                    'authz.service_unavailable': ExchangeNotAvailable,
                     'auth.required': AuthenticationError,
                     'market.order.invalid_price_precision': InvalidOrder,
                     'market.order.invalid_volume_precision': InvalidOrder,
@@ -197,6 +200,10 @@ export default class calibri extends Exchange {
                     'market.order.price_too_low': InvalidOrder,
                     'market.order.invalid_volume': InvalidOrder,
                     'market.order.invalid_side': InvalidOrder,
+                    'market.order.invalid_direction': InvalidOrder,
+                    'market.order.missing_market': InvalidOrder,
+                    'market.order.missing_volume': InvalidOrder,
+                    'market.order.missing_price': InvalidOrder,
                     'market.order.invalid_ord_type': InvalidOrder,
                     'market.order.amount_too_small': InvalidOrder,
                     'market.order.amount_too_large': InvalidOrder,
@@ -205,40 +212,70 @@ export default class calibri extends Exchange {
                     'market.order.post_only_would_match': OrderNotFillable,
                     'market.order.insufficient_market_liquidity': OrderNotFillable,
                     'market.order.insufficient_balance': InsufficientFunds,
+                    // the engine refused the order: most often collateral (stake plus the taker-fee reserve) or a sell above sellable_volume
+                    'market.order.create_failed': InsufficientFunds,
+                    // a sell of shares still settling on-chain; it succeeds once the match confirms
+                    'market.order.tokens_settling': OperationFailed,
                     'market.order.account_not_active': AccountNotEnabled,
+                    'market.order.member_frozen': AccountSuspended,
                     'market.order.kyc_required': PermissionDenied,
                     'market.order.cannot_cancel': OrderNotFound,
+                    // cancel refused: the order is already terminal or fully matched
+                    'market.order.invalid_state': OrderNotFound,
                     'market.order.not_found': OrderNotFound,
                     'market.order.rate_limited': RateLimitExceeded,
                     'market.market.doesnt_exist': BadSymbol,
+                    'market.market.disabled': MarketClosed,
                     'market.engine.not_found': BadSymbol,
+                    'market.engine.busy': ExchangeNotAvailable,
                     'public.market.doesnt_exist': BadSymbol,
                     'prediction.event.not_found': BadSymbol,
                     'public.k_line.invalid_period': BadRequest,
                     'public.k_line.non_integer_period': BadRequest,
                     'order.duplicate_client_order_id': DuplicateOrderId,
                     'order.not_open': OrderNotFound,
+                    'order.replace_market_mismatch': InvalidOrder,
+                    // retryable: the Safe's current state or a new trading key is not final yet
+                    'wallet.state_pending': OperationFailed,
+                    'session.pending': OperationFailed,
+                    'wallet.deploying': OperationFailed,
+                    'wallet.deposit_required': AccountNotEnabled,
+                    // the relayed SafeTx signature does not sign the nonce sent
+                    'relay.nonce_mismatch': BadRequest,
+                    // retryable: the check could not be completed, nothing was placed
+                    'Unable to verify member safe readiness': OperationFailed,
+                    'Unable to verify signed_order signature': OperationFailed,
+                    // signature type 3: the signature is not one the Safe accepts (e.g. the order hash signed instead of the SafeMessage)
+                    'Invalid signed_order signature': AuthenticationError,
+                    'Non-custodial orders must be limit orders': InvalidOrder,
                     'server.error': ExchangeNotAvailable,
+                    'Internal server error': ExchangeNotAvailable,
                     'maintenance': OnMaintenance,
                 },
                 'broad': {
-                    'Insufficient position to sell': InsufficientFunds,
                     'Member safe is not settlement-ready': AccountNotEnabled,
+                    'This wallet is not registered to your account yet': AccountNotEnabled,
+                    'This wallet is not set up for trading': AccountNotEnabled,
+                    'Quick trading is not set up on this wallet': AccountNotEnabled,
+                    'This wallet needs more than one signature': NotSupported,
                     'Market is not CTF-registered': BadSymbol,
                     'is not a Safe registered to this member': AuthenticationError,
+                    'maker must be the member safe wallet': AuthenticationError,
                     'signature does not match the signer': AuthenticationError,
-                    'signature was not accepted by the maker wallet': AuthenticationError,
                     'trading key has expired or been revoked': AuthenticationError,
+                    'no longer signs for this wallet': AuthenticationError,
+                    'no longer able to sign for this wallet': AuthenticationError,
                     'is a passkey wallet': AuthenticationError,
                     'signed_order': InvalidOrder,
                     'authz.': AuthenticationError,
                     'too_many_requests': RateLimitExceeded,
+                    // atlas 429 body: "Rate limit exceeded. Try again in N seconds"
+                    'Rate limit exceeded': RateLimitExceeded,
+                    'Too many requests': RateLimitExceeded,
                 },
             },
             'requiredCredentials': {
-                // apiKey + secret authenticate every private request (HMAC). privateKey is only needed
-                // to sign orders: the EOA that owns the Safe (signature type 2) or a second signing key
-                // added as a Safe owner (signature type 3). walletAddress optionally names the Safe
+                // privateKey signs orders only: the Safe owner EOA (signature type 2) or an added owner key (type 3)
                 'apiKey': true,
                 'secret': true,
                 'privateKey': false,
@@ -253,40 +290,40 @@ export default class calibri extends Exchange {
                 },
             },
             'options': {
-                // fetchEvents scope keys accepted besides query/queries/tags/eventId/slug
                 'eventScopeParams': [ 'category', 'series', 'subcategory', 'frequency' ],
                 // /public/events caps a page at 100 events
                 'eventsPageSize': 100,
                 'maxEventPages': 10,
                 // list each window of a rolling series as its own event; the windows count toward fetchMarketsLimit
                 'expandSeries': true,
-                // fetchMarkets / loadMarkets lists at most this many events
                 'fetchMarketsLimit': 200,
                 'adjustForTimeDifference': false,
                 'timeDifference': 0,
-                // resting limit orders are signed with a long expiration, market-style (IOC) orders
-                // with a short one
+                // signature lifetime in seconds for resting orders and for IOC orders
                 'orderExpiration': 2592000,
                 'marketOrderExpiration': 120,
                 'fetchPositions': {
                     'markPrice': false,
                 },
-                // the account/wallet config (exchange address, chain id, domain name, Safe, signature
-                // type) is fetched once and cached here; set it to skip the request
+                // cached account/wallet config; set it to skip the request
                 'wallet': undefined,
-                // approve() and redeem() read the Safe nonce and the operator through this rpc
+                // approve() and redeem() read the Safe nonce and the matcher through this rpc
                 'rpcUrl': 'https://polygon-bor-rpc.publicnode.com',
-                // Polygon mainnet contracts, see https://docs.calibri.io/smart-contracts/deployed-addresses;
-                // orders and Safe transactions are only signed for these, a wallet config naming others is refused
+                // Polygon mainnet contracts, see https://docs.calibri.io/smart-contracts/deployed-addresses; orders and Safe transactions are signed only for these
+                'networks': {
+                    'MATIC': 'polygon',
+                    'ETH': 'ethereum',
+                },
                 'chainId': 137,
                 'ctfExchangeName': 'Calibri CTF Prediction Markets',
                 'ctfExchangeVersion': '1',
                 'exchangeAddress': '0xA06be29A9077DA70c70601156aac9F2cE0E3b595',
                 'conditionalTokensAddress': '0x53aB2e11ea7a7e90a11F002FAa859124729611F4',
                 'usdcAddress': '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359',
+                // CalibriMatcher settles each match and takes the taker fee in the same transaction; setup grants it an unlimited USDC allowance
+                'matcherAddress': '0x974533370a52DDfBeBAFf98e6C12f232485A0293',
+                // setup sets the operator's USDC allowance to zero
                 'operatorAddress': '0xf3CD4c4B456d1bCaaDB7782c3F552731F33264eE',
-                // whole USDC the operator may pull from the Safe for taker fees, set by approve()
-                'operatorFeeAllowance': 1000,
             },
         });
     }
@@ -338,7 +375,7 @@ export default class calibri extends Exchange {
      * @method
      * @name calibri#fetchMarkets
      * @description retrieves the markets of the listed events; each calibri market is binary, with a YES and a NO outcome under the outcomes key
-     * @see https://docs.calibri.io/api-reference/introduction
+     * @see https://docs.calibri.io/api-reference/endpoints/events/list-events
      * @param {object} [params] extra parameters specific to the exchange API endpoint
      * @param {string} [params.status] event status filter passed to the listing, e.g. 'active', 'closed', 'resolved'
      * @param {string} [params.category] filter by category
@@ -379,12 +416,10 @@ export default class calibri extends Exchange {
         const maxPages = this.safeInteger (this.options, 'maxEventPages', 10);
         const seen: Dict = {};
         const result: any[] = [];
-        // every window of a rolling series as its own event; the listing otherwise shows one per series
         let listRequest = request;
         if (this.safeBool (this.options, 'expandSeries', true)) {
             listRequest = this.extend ({ 'expand_series': 'true' }, request);
         }
-        // pages through the event list in one call, as polymarket and kalshi do for their event lists
         for (let page = 1; page <= maxPages; page++) {
             const pageRequest = this.extend (listRequest, { 'page': page, 'limit': pageSize });
             const response = await this.pythiaPublicGetPublicEvents (pageRequest);
@@ -426,6 +461,10 @@ export default class calibri extends Exchange {
             if ((maxEvents !== undefined) && (resultLength >= maxEvents)) {
                 break;
             }
+        }
+        const collected = result.length;
+        if ((maxEvents !== undefined) && (collected > maxEvents)) {
+            return this.arraySlice (result, 0, maxEvents);
         }
         return result;
     }
@@ -504,7 +543,7 @@ export default class calibri extends Exchange {
      * @method
      * @name calibri#fetchEvents
      * @description fetches events matching the given scope (query/queries/tags/eventId/slug, or a category/series/subcategory/frequency filter) and caches their markets and outcomes
-     * @see https://docs.calibri.io/api-reference/introduction
+     * @see https://docs.calibri.io/api-reference/endpoints/events/list-events
      * @param {object} [params] extra exchange-specific parameters
      * @param {string} [params.query] a search term, sent as the server-side `q` and re-checked client-side (title, description, slug and market titles must contain every word)
      * @param {string[]} [params.queries] several search terms, an event matching any one of them is kept
@@ -513,6 +552,8 @@ export default class calibri extends Exchange {
      * @param {string} [params.slug] the event slug
      * @param {string} [params.category] filter by category
      * @param {string} [params.series] a series slug, to list only that series' windows
+     * @param {string} [params.subcategory] a sub-category slug, e.g. 'tennis'
+     * @param {string} [params.frequency] a series cadence, e.g. 'daily', 'weekly' or 'monthly'
      * @param {int} [params.limit] max number of events to return
      * @param {string} [params.status] 'active', 'inactive', 'closed', 'resolved' or 'all'
      * @param {string} [params.sort] 'volume', 'liquidity' or 'newest'
@@ -528,7 +569,6 @@ export default class calibri extends Exchange {
         const queriesLength = queries.length;
         let rawEvents: any[] = [];
         if ((slug !== undefined) || (eventId !== undefined)) {
-            // the event route takes the slug or the numeric id
             let key = slug;
             if (key === undefined) {
                 key = eventId;
@@ -575,8 +615,7 @@ export default class calibri extends Exchange {
         }
         const events = this.parseEvents (rawEvents);
         this.registerEventMarkets (events);
-        // the server already applied tags, status and the text query; the shared pipeline still
-        // applies eventId / slug / searchIn / sort / limit and caches the events
+        // applyEventFetchParams re-applies eventId / slug / searchIn / sort / limit
         const effectiveParams = this.omit (params, [ 'tags', 'status', 'query', 'queries' ]);
         let searchQueries: Strings = undefined;
         if (this.safeString (params, 'searchIn') !== undefined) {
@@ -620,7 +659,7 @@ export default class calibri extends Exchange {
      * @method
      * @name calibri#fetchEvent
      * @description fetches a single event by its slug or numeric id
-     * @see https://docs.calibri.io/api-reference/introduction
+     * @see https://docs.calibri.io/api-reference/endpoints/events/event-by-slug
      * @param {string} id the event slug or numeric event id
      * @param {object} [params] extra parameters specific to the exchange API endpoint
      * @returns {object} a [prediction event structure](https://docs.ccxt.com/#/?id=prediction-event-structure)
@@ -1178,15 +1217,22 @@ export default class calibri extends Exchange {
         if (outcomeSymbol.indexOf (':') < 0) {
             throw new BadSymbol (this.id + ' could not resolve outcome ' + outcomeSymbol + " — pass an outcome handle, a token id or '{market_id}:yes' / '{market_id}:no'");
         }
-        try {
-            return await super.fetchOutcome (outcomeSymbol);
-        } catch (e) {
-            if (!(e instanceof BadSymbol)) {
-                throw e;
+        // the base fetchOutcome search, inline: the go port routes super calls to the crypto base
+        const searchQuery = this.outcomeSearchQuery (outcomeSymbol);
+        if (searchQuery !== undefined) {
+            const searchLimit = this.safeInteger (this.options, 'fetchOutcomeSearchLimit', 10);
+            try {
+                await this.fetchEvents ({ 'query': searchQuery, 'limit': searchLimit });
+            } catch (e) {
+                if (!(e instanceof BadSymbol)) {
+                    throw e;
+                }
+            }
+            if (this.hasOutcome (outcomeSymbol)) {
+                return this.safeOutcome (outcomeSymbol);
             }
         }
-        // the search found nothing: warm the cache from the plain listing (handles of series
-        // windows carry slug timestamps that a text search does not match)
+        // fall back to the plain listing: series-window handles carry slug timestamps the text search does not match
         const limit = this.safeInteger (this.options, 'fetchMarketsLimit', 200);
         const rawEvents = await this.fetchRawEventsPaged ({}, limit, undefined);
         const events = this.parseEvents (rawEvents);
@@ -1202,7 +1248,7 @@ export default class calibri extends Exchange {
      * @method
      * @name calibri#fetchTicker
      * @description fetches the ticker of one outcome; calibri publishes it in YES price space and the NO ticker is its complement
-     * @see https://docs.calibri.io/api-reference/introduction
+     * @see https://docs.calibri.io/api-reference/endpoints/market-data/ticker
      * @param {string} outcome unified outcome handle, token id or "{market_id}:yes|no"
      * @param {object} [params] extra parameters specific to the exchange API endpoint
      * @returns {object} a [prediction ticker structure](https://docs.ccxt.com/#/?id=prediction-ticker-structure)
@@ -1237,27 +1283,19 @@ export default class calibri extends Exchange {
      * @method
      * @name calibri#fetchTickers
      * @description fetches the tickers of several outcomes from the all-markets tickers endpoint
-     * @see https://docs.calibri.io/api-reference/introduction
-     * @param {string[]} [outcomes] unified outcome handles; when omitted, every cached outcome (loading the listed markets first) is returned
+     * @see https://docs.calibri.io/api-reference/endpoints/market-data/all-tickers
+     * @param {string[]} outcomes unified outcome handles
      * @param {object} [params] extra parameters specific to the exchange API endpoint
      * @returns {object} a dictionary of [prediction ticker structures](https://docs.ccxt.com/#/?id=prediction-ticker-structure) indexed by outcome
      */
     override async fetchTickers (outcomes: Strings = undefined, params: Dict = {}): Promise<PredictionTickers> {
+        if (outcomes === undefined) {
+            throw new ArgumentsRequired (this.id + ' fetchTickers() requires an outcomes argument; pass the outcome handles to fetch (discover them via fetchEvents ())');
+        }
+        await this.loadOutcomes (outcomes);
         const targets: any[] = [];
-        if (outcomes !== undefined) {
-            await this.loadOutcomes (outcomes);
-            for (let i = 0; i < outcomes.length; i++) {
-                targets.push (this.lookupOutcome (outcomes[i]));
-            }
-        } else {
-            await this.loadOutcomes ();
-            const lookupOutcomes = this.outcomes;
-            if (lookupOutcomes !== undefined) {
-                const outcomeKeys = Object.keys (lookupOutcomes);
-                for (let i = 0; i < outcomeKeys.length; i++) {
-                    targets.push (lookupOutcomes[outcomeKeys[i]]);
-                }
-            }
+        for (let i = 0; i < outcomes.length; i++) {
+            targets.push (this.lookupOutcome (outcomes[i]));
         }
         const response = await this.pythiaPublicGetPublicTickers (params);
         //
@@ -1391,7 +1429,7 @@ export default class calibri extends Exchange {
      * @method
      * @name calibri#fetchOrderBook
      * @description fetches the order book of one outcome (calibri publishes the YES and NO books together)
-     * @see https://docs.calibri.io/api-reference/introduction
+     * @see https://docs.calibri.io/api-reference/endpoints/market-data/order-book
      * @param {string} outcome unified outcome handle, token id or "{market_id}:yes|no"
      * @param {int} [limit] the number of levels per side, 1-200
      * @param {object} [params] extra parameters specific to the exchange API endpoint
@@ -1428,7 +1466,7 @@ export default class calibri extends Exchange {
      * @method
      * @name calibri#fetchOHLCV
      * @description fetches candles of one outcome; calibri publishes YES-price candles and the NO candle is the complement (high and low swapped)
-     * @see https://docs.calibri.io/api-reference/introduction
+     * @see https://docs.calibri.io/api-reference/endpoints/market-data/k-line-candles
      * @param {string} outcome unified outcome handle, token id or "{market_id}:yes|no"
      * @param {string} timeframe the length of time each candle represents
      * @param {int} [since] timestamp in ms of the earliest candle to fetch
@@ -1513,7 +1551,7 @@ export default class calibri extends Exchange {
      * @method
      * @name calibri#fetchTrades
      * @description fetches the public trade tape of one outcome; voided trades are dropped and NO prices are the complement of the YES price
-     * @see https://docs.calibri.io/api-reference/introduction
+     * @see https://docs.calibri.io/api-reference/endpoints/market-data/recent-contracts
      * @param {string} outcome unified outcome handle, token id or "{market_id}:yes|no"
      * @param {int} [since] timestamp in ms of the earliest trade to fetch (sent as time_from, filtered client-side as well)
      * @param {int} [limit] the maximum number of trades to fetch, 1-1000
@@ -1702,7 +1740,7 @@ export default class calibri extends Exchange {
      * @method
      * @name calibri#fetchTradingFee
      * @description fetches the trading fee of one outcome; calibri charges the taker rate_bps / 1e4 * volume * p * (1 - p) with the event's effective rate, so `taker` here is that rate (the fee per share is taker * p * (1 - p)); makers pay nothing
-     * @see https://docs.calibri.io/api-reference/introduction
+     * @see https://docs.calibri.io/api-reference/endpoints/markets/market-detail
      * @param {string} outcome unified outcome handle, token id or "{market_id}:yes|no"
      * @param {object} [params] extra parameters specific to the exchange API endpoint
      * @returns {object} a [fee structure](https://docs.ccxt.com/#/?id=fee-structure)
@@ -1712,8 +1750,7 @@ export default class calibri extends Exchange {
         const info = this.safeDict (outcomeObj, 'info', {});
         let eventSlug = this.safeString (info, 'event_slug');
         if (eventSlug === undefined) {
-            const market = await this.pythiaPublicGetPublicMarketsMarket ({ 'market': this.safeString (outcomeObj, 'marketId') });
-            eventSlug = this.safeString (market, 'event_slug');
+            eventSlug = this.safeString (info, 'event_id');
         }
         const response = await this.pythiaPublicGetPublicEventsSlug (this.extend ({ 'slug': eventSlug }, params));
         //
@@ -1740,7 +1777,7 @@ export default class calibri extends Exchange {
      * @method
      * @name calibri#fetchOpenInterest
      * @description fetches the open interest of an outcome's market (outstanding YES/NO pairs, one USDC of collateral each)
-     * @see https://docs.calibri.io/api-reference/introduction
+     * @see https://docs.calibri.io/api-reference/endpoints/markets/market-detail
      * @param {string} outcome unified outcome handle, token id or "{market_id}:yes|no"
      * @param {object} [params] extra parameters specific to the exchange API endpoint
      * @returns {object} an [open interest structure](https://docs.ccxt.com/#/?id=open-interest-structure)
@@ -1774,8 +1811,9 @@ export default class calibri extends Exchange {
     /**
      * @method
      * @name calibri#fetchBalance
-     * @description fetches the USDC balance; for a self-custody account free is the Safe balance minus what open orders lock
+     * @description fetches the USDC balance; for a self-custody account free is balance_safe (available) and used is locked_safe (reserved by resting orders)
      * @see https://docs.calibri.io/non-custodial/balances
+     * @see https://docs.calibri.io/api-reference/endpoints/account/all-balances
      * @param {object} [params] extra parameters specific to the exchange API endpoint
      * @returns {object} a [balance structure](https://docs.ccxt.com/#/?id=balance-structure)
      */
@@ -1812,10 +1850,9 @@ export default class calibri extends Exchange {
             const account = this.account ();
             const safeBalance = this.safeString (row, 'balance_safe');
             if (safeBalance !== undefined) {
-                const safeLocked = this.safeString (row, 'locked_safe', '0');
-                account['total'] = safeBalance;
-                account['used'] = safeLocked;
-                account['free'] = Precise.stringSub (safeBalance, safeLocked);
+                // balance_safe is what is available, locked_safe what resting orders reserve; the total is their sum
+                account['free'] = safeBalance;
+                account['used'] = this.safeString (row, 'locked_safe', '0');
             } else {
                 const balance = this.safeString (row, 'balance');
                 const locked = this.safeString (row, 'locked', '0');
@@ -1831,7 +1868,7 @@ export default class calibri extends Exchange {
      * @method
      * @name calibri#fetchPositions
      * @description fetches the account's outcome positions
-     * @see https://docs.calibri.io/api-reference/introduction
+     * @see https://docs.calibri.io/api-reference/endpoints/positions/your-positions
      * @param {string[]} [outcomes] unified outcome handles to filter by
      * @param {object} [params] extra parameters specific to the exchange API endpoint
      * @param {boolean} [params.open_only] only positions with a non-zero quantity, default true
@@ -1929,7 +1966,7 @@ export default class calibri extends Exchange {
      * @method
      * @name calibri#fetchPosition
      * @description fetches the position on one outcome
-     * @see https://docs.calibri.io/api-reference/introduction
+     * @see https://docs.calibri.io/api-reference/endpoints/positions/your-positions
      * @param {string} outcome unified outcome handle, token id or "{market_id}:yes|no"
      * @param {object} [params] extra parameters specific to the exchange API endpoint
      * @returns {object} a [prediction position structure](https://docs.ccxt.com/#/?id=prediction-position-structure)
@@ -1948,9 +1985,14 @@ export default class calibri extends Exchange {
             label = this.safeString (position, 'outcome_label');
         }
         const timestamp = this.parse8601 (this.safeString (position, 'updated_at'));
+        let id = marketId + ':' + side;
+        const custody = this.safeString (position, 'custody');
+        if (custody !== undefined) {
+            id = id + ':' + custody;
+        }
         return this.safePredictionPosition ({
             'info': position,
-            'id': undefined,
+            'id': id,
             'outcome': this.safeString (outcomeObj, 'outcome'),
             'outcomeId': this.safeString (outcomeObj, 'outcomeId'),
             'label': label,
@@ -1978,7 +2020,7 @@ export default class calibri extends Exchange {
      * @method
      * @name calibri#fetchOrders
      * @description fetches the account's orders in every state, open and closed
-     * @see https://docs.calibri.io/api-reference/introduction
+     * @see https://docs.calibri.io/api-reference/endpoints/trade/your-orders
      * @param {string} [outcome] unified outcome handle to filter by
      * @param {int} [since] timestamp in ms of the earliest order
      * @param {int} [limit] the maximum number of orders to return, 1-100
@@ -1994,7 +2036,7 @@ export default class calibri extends Exchange {
      * @method
      * @name calibri#fetchOpenOrders
      * @description fetches the account's resting orders
-     * @see https://docs.calibri.io/api-reference/introduction
+     * @see https://docs.calibri.io/api-reference/endpoints/trade/your-orders
      * @param {string} [outcome] unified outcome handle to filter by
      * @param {int} [since] timestamp in ms of the earliest order
      * @param {int} [limit] the maximum number of orders to return, 1-100
@@ -2010,7 +2052,7 @@ export default class calibri extends Exchange {
      * @method
      * @name calibri#fetchClosedOrders
      * @description fetches the account's fully filled orders
-     * @see https://docs.calibri.io/api-reference/introduction
+     * @see https://docs.calibri.io/api-reference/endpoints/trade/your-orders
      * @param {string} [outcome] unified outcome handle to filter by
      * @param {int} [since] timestamp in ms of the earliest order
      * @param {int} [limit] the maximum number of orders to return, 1-100
@@ -2026,7 +2068,7 @@ export default class calibri extends Exchange {
      * @method
      * @name calibri#fetchCanceledOrders
      * @description fetches the account's cancelled orders (including expired ones and the unfilled rest of IOC orders)
-     * @see https://docs.calibri.io/api-reference/introduction
+     * @see https://docs.calibri.io/api-reference/endpoints/trade/your-orders
      * @param {string} [outcome] unified outcome handle to filter by
      * @param {int} [since] timestamp in ms of the earliest order
      * @param {int} [limit] the maximum number of orders to return, 1-100
@@ -2105,7 +2147,7 @@ export default class calibri extends Exchange {
      * @method
      * @name calibri#fetchOrder
      * @description fetches one order by id
-     * @see https://docs.calibri.io/api-reference/introduction
+     * @see https://docs.calibri.io/api-reference/endpoints/trade/order-by-id
      * @param {string} id the order id
      * @param {string} [outcome] not used by calibri fetchOrder
      * @param {object} [params] extra parameters specific to the exchange API endpoint
@@ -2205,7 +2247,7 @@ export default class calibri extends Exchange {
             'amount': this.safeString2 (order, 'origin_volume', 'volume'),
             'filled': this.safeString (order, 'filled_volume'),
             'remaining': this.safeString (order, 'remaining_volume'),
-            'cost': this.safeString (order, 'filled_cost'),
+            'cost': this.omitZero (this.safeString (order, 'filled_cost')),
             'fee': fee,
             'trades': [],
         }, outcomeObj);
@@ -2215,7 +2257,7 @@ export default class calibri extends Exchange {
      * @method
      * @name calibri#fetchMyTrades
      * @description fetches the account's fills (contracts), newest first
-     * @see https://docs.calibri.io/api-reference/introduction
+     * @see https://docs.calibri.io/api-reference/endpoints/positions/your-contracts
      * @param {string} [outcome] unified outcome handle to filter by
      * @param {int} [since] timestamp in ms of the earliest fill
      * @param {int} [limit] the maximum number of fills to return, 1-200
@@ -2269,7 +2311,7 @@ export default class calibri extends Exchange {
      * @method
      * @name calibri#fetchOrderTrades
      * @description fetches the fills of one order
-     * @see https://docs.calibri.io/api-reference/introduction
+     * @see https://docs.calibri.io/api-reference/endpoints/positions/your-contracts
      * @param {string} id the order id
      * @param {string} [outcome] not used by calibri fetchOrderTrades
      * @param {int} [since] timestamp in ms of the earliest fill
@@ -2324,6 +2366,28 @@ export default class calibri extends Exchange {
     /**
      * @ignore
      * @method
+     * @name calibri#readWordInteger
+     * @description reads a small unsigned integer (a nonce) from a 32-byte eth_call result; an empty result is 0
+     * @param {string} word the eth_call result, 0x-prefixed
+     * @returns {int} the value of its low 64 bits
+     */
+    readWordInteger (word: Str): number {
+        const hex = this.remove0xPrefix (word).toLowerCase ();
+        if (hex === '') {
+            return 0;
+        }
+        const digits = '0123456789abcdef';
+        let result: Str = '0';
+        for (let i = 48; i < 64; i++) {
+            const digitValue = digits.indexOf (hex.slice (i, i + 1));
+            result = Precise.stringAdd (Precise.stringMul (result, '16'), this.numberToString (digitValue));
+        }
+        return this.parseToInt (result);
+    }
+
+    /**
+     * @ignore
+     * @method
      * @name calibri#checkWalletConfig
      * @description refuses a wallet config whose chain, contracts or Safe differ from the pinned options, so nothing is signed for a contract the options do not name
      * @param {object} wallet an account/wallet or account/wallet/redeemable response
@@ -2347,7 +2411,8 @@ export default class calibri extends Exchange {
         }
         const proxy = this.safeStringLower (wallet, 'proxy_address');
         const configured = this.walletAddress;
-        if ((configured !== undefined) && (configured.indexOf ('0x') === 0) && (proxy !== undefined) && (proxy !== configured.toLowerCase ())) {
+        const pinsSafe = (configured !== undefined) && (configured.indexOf ('0x') === 0);
+        if (pinsSafe && (proxy !== undefined) && (proxy !== configured.toLowerCase ())) {
             throw new BadResponse (this.id + ' the account Safe ' + proxy + ' is not the configured walletAddress ' + configured + ', refusing to sign');
         }
         return true;
@@ -2372,17 +2437,23 @@ export default class calibri extends Exchange {
         this.checkWalletConfig (response);
         //
         //     {
-        //         "exchange_address": "0x...",
+        //         "exchange_address": "0xA06be29A9077DA70c70601156aac9F2cE0E3b595",
+        //         "conditional_tokens_address": "0x53aB2e11ea7a7e90a11F002FAa859124729611F4",
+        //         "usdc_address": "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
         //         "chain_id": 137,
-        //         "domain_name": "Calibri CTF Exchange",
-        //         "proxy_address": "0x... (the Safe, maker of every order)",
+        //         "domain_name": "Calibri CTF Prediction Markets",
+        //         "proxy_address": "0xFFB7Cce73cF1346EA374C276320227BeA3996AcF",
         //         "owner_address": "0x...",
         //         "signature_type": 2,
         //         "safe_status": "ready",
         //         ...
         //     }
         //
-        this.options['wallet'] = response;
+        // safe_status moves on (deposit_required -> deploying -> setup_required -> ready), so only a ready wallet is cached
+        const safeStatus = this.safeString (response, 'safe_status');
+        if ((safeStatus === undefined) || (safeStatus === 'ready')) {
+            this.options['wallet'] = response;
+        }
         return response;
     }
 
@@ -2473,8 +2544,7 @@ export default class calibri extends Exchange {
         }
         const defaultSalt = this.incrementingNonce ();
         const salt = this.safeString (params, 'salt', this.numberToString (defaultSalt));
-        // 1 share = 1 outcome token = 1e6 base units; USDC is 6 decimals too. the token amount is
-        // volume * 1e6 and the collateral amount price * volume * 1e6, both exact at cent prices
+        // shares and USDC both use 6-decimal base units
         const tokenUnits = this.decimalToPrecision (Precise.stringMul (amountString, '1000000'), ROUND, 0, DECIMAL_PLACES);
         const collateralUnits = this.decimalToPrecision (Precise.stringMul (Precise.stringMul (priceString, amountString), '1000000'), ROUND, 0, DECIMAL_PLACES);
         let makerAmount = collateralUnits;
@@ -2574,7 +2644,8 @@ export default class calibri extends Exchange {
     signCalibriOrder (orderMessage: Dict, wallet: Dict): string {
         const chainIdValue = this.safeInteger (this.options, 'chainId');
         const chainIdString = this.numberToString (chainIdValue) as string;
-        const domainName = this.safeString (this.options, 'ctfExchangeName');
+        // the EIP-712 domain name is served by account/wallet; checkWalletConfig has already matched it against the pinned name
+        const domainName = this.safeString (wallet, 'domain_name', this.safeString (this.options, 'ctfExchangeName'));
         const domainVersion = this.safeString (this.options, 'ctfExchangeVersion', '1');
         const exchangeAddress = this.ethChecksumAddress (this.safeString (this.options, 'exchangeAddress'));
         const sigType = this.safeInteger (wallet, 'signature_type');
@@ -2601,9 +2672,8 @@ export default class calibri extends Exchange {
         const encoded = this.ethEncodeStructuredData (orderDomain, { 'Order': orderStruct }, orderMessage);
         let digest: Str = undefined;
         if (this.parseToInt (sigType) === 3) {
-            // the Safe validates isValidSignature(orderHash) by re-wrapping abi.encode(orderHash) in a
-            // SafeMessage under its own domain (Safe 1.3.0: chainId + verifyingContract only), so the
-            // owner key signs that wrapped digest, never the order hash itself
+            // signature type 3: the Safe checks isValidSignature (orderHash) against a SafeMessage digest under its own
+            // domain (chainId + verifyingContract), so the owner key signs that digest
             const orderHash = this.hash (encoded, keccak, 'binary');
             const safeAddress = this.safeString (orderMessage, 'maker');
             const domainTypeHash = this.hash (this.encode ('EIP712Domain(uint256 chainId,address verifyingContract)'), keccak, 'binary');
@@ -2714,6 +2784,7 @@ export default class calibri extends Exchange {
      * @name calibri#createOrder
      * @description places a signed (EIP-712) order on an outcome. a market order is an immediate-or-cancel limit at a price ceiling (buy) or floor (sell) with a short expiration
      * @see https://docs.calibri.io/non-custodial/signed-orders
+     * @see https://docs.calibri.io/api-reference/endpoints/trade/place-a-signed-order
      * @param {string} outcome unified outcome handle, token id or "{market_id}:yes|no"
      * @param {string} type 'limit' or 'market'
      * @param {string} side 'buy' or 'sell' (sell offers outcome tokens you hold)
@@ -2832,7 +2903,7 @@ export default class calibri extends Exchange {
         const result: PredictionOrder[] = [];
         for (let i = 0; i < rows.length; i++) {
             const entry = rows[i];
-            const outcomeObj = this.safeValue (outcomeObjs, i);
+            const outcomeObj = this.safeDict (outcomeObjs, i) as any;
             const echo = this.safeDict (echoes, i, {});
             const failure = this.safeDict (entry, 'error');
             if (failure !== undefined) {
@@ -2893,7 +2964,7 @@ export default class calibri extends Exchange {
      * @method
      * @name calibri#cancelOrder
      * @description cancels one order; the response carries the order id and state only
-     * @see https://docs.calibri.io/api-reference/introduction
+     * @see https://docs.calibri.io/api-reference/endpoints/trade/cancel-an-order
      * @param {string} id the order id
      * @param {string} [outcome] unified outcome handle, used only to label the result
      * @param {object} [params] extra parameters specific to the exchange API endpoint
@@ -2928,7 +2999,7 @@ export default class calibri extends Exchange {
      * @method
      * @name calibri#cancelOrders
      * @description cancels several orders, one request per order (calibri has no batch cancel by id)
-     * @see https://docs.calibri.io/api-reference/introduction
+     * @see https://docs.calibri.io/api-reference/endpoints/trade/cancel-an-order
      * @param {string[]} ids the order ids
      * @param {string} [outcome] unified outcome handle, used only to label the results
      * @param {object} [params] extra parameters specific to the exchange API endpoint
@@ -2984,7 +3055,7 @@ export default class calibri extends Exchange {
     /**
      * @method
      * @name calibri#createMarketBuyOrderWithCost
-     * @description buys an outcome for a fixed amount of USDC: the shares `cost` buys from the current book, as an immediate-or-cancel order at the worst price it reaches; the taker fee is charged on top of `cost`
+     * @description buys an outcome for a fixed amount of USDC: an immediate-or-cancel order at the worst ask price `cost` reaches in the current book, for at most `cost` / that price shares, so the order never spends more than `cost`; the taker fee is charged on top of `cost`
      * @see https://docs.calibri.io/non-custodial/signed-orders
      * @param {string} outcome unified outcome handle, token id or "{market_id}:yes|no"
      * @param {float} cost the USDC to spend on shares
@@ -3016,6 +3087,10 @@ export default class calibri extends Exchange {
         if (worst === undefined) {
             throw new OrderNotFillable (this.id + ' createMarketBuyOrderWithCost() ' + handle + ' has no resting asks');
         }
+        const maxShares = Precise.stringDiv (this.numberToString (cost), worst, 8);
+        if (Precise.stringGt (shares, maxShares)) {
+            shares = maxShares;
+        }
         const amountString = this.amountToPredictionPrecision (handle, this.parseNumber (shares));
         if (!Precise.stringGt (amountString, '0')) {
             throw new InvalidOrder (this.id + ' createMarketBuyOrderWithCost() cost ' + this.numberToString (cost) + ' does not buy one share of ' + handle);
@@ -3027,9 +3102,9 @@ export default class calibri extends Exchange {
      * @method
      * @name calibri#fetchOrdersByIds
      * @description fetches several orders by id, one request each
-     * @see https://docs.calibri.io/api-reference/introduction
+     * @see https://docs.calibri.io/api-reference/endpoints/trade/order-by-id
      * @param {string[]} ids the order ids
-     * @param {string} [outcome] unified outcome handle the orders belong to
+     * @param {string} [outcome] not used by calibri fetchOrdersByIds
      * @param {object} [params] extra parameters specific to the exchange API endpoint
      * @returns {object[]} a list of [prediction order structures](https://docs.ccxt.com/#/?id=prediction-order-structure)
      */
@@ -3047,7 +3122,8 @@ export default class calibri extends Exchange {
      * @name calibri#fetchAccounts
      * @description the account the credentials belong to: one USDC account, held in the Safe
      * @see https://docs.calibri.io/non-custodial/the-safe
-     * @param {object} [params] extra parameters specific to the exchange API endpoint
+     * @see https://docs.calibri.io/api-reference/endpoints/wallet/ctf-wallet
+     * @param {object} [params] not used by calibri fetchAccounts
      * @returns {object[]} a list of [account structures](https://docs.ccxt.com/#/?id=account-structure)
      */
     override async fetchAccounts (params: Dict = {}): Promise<Account[]> {
@@ -3067,7 +3143,7 @@ export default class calibri extends Exchange {
      * @method
      * @name calibri#fetchCurrencies
      * @description fetches the currencies the account can deposit and withdraw
-     * @see https://docs.calibri.io/api-reference/introduction
+     * @see https://docs.calibri.io/api-reference/endpoints/currencies/list-currencies
      * @param {object} [params] extra parameters specific to the exchange API endpoint
      * @returns {object} an associative dictionary of currencies
      */
@@ -3099,9 +3175,10 @@ export default class calibri extends Exchange {
             const networkId = this.safeString (currency, 'blockchain_key');
             const networks: Dict = {};
             if (networkId !== undefined) {
-                networks[networkId] = {
+                const networkCode = this.networkIdToCode (networkId) as string;
+                networks[networkCode] = {
                     'id': networkId,
-                    'network': networkId,
+                    'network': networkCode,
                     'active': undefined,
                     'deposit': depositEnabled,
                     'withdraw': withdrawEnabled,
@@ -3171,7 +3248,7 @@ export default class calibri extends Exchange {
         //             "state": "confirmed",
         //             "blockchain_key": "polygon",
         //             "address": "0xffb7cce73cf1346ea374c276320227bea3996acf",
-        //             "from_address": "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+        //             "from_address": "0x...",
         //             "completed_at": "2026-10-19T11:32:23Z"
         //         }
         //     ]
@@ -3236,7 +3313,7 @@ export default class calibri extends Exchange {
             'txid': this.safeString2 (transaction, 'txid', 'blockchain_txid'),
             'timestamp': timestamp,
             'datetime': this.iso8601 (timestamp),
-            'network': networkId,
+            'network': this.networkIdToCode (networkId),
             'address': address,
             'addressTo': address,
             'addressFrom': this.safeString (transaction, 'from_address'),
@@ -3287,7 +3364,7 @@ export default class calibri extends Exchange {
      * @method
      * @name calibri#fetchLedger
      * @description fetches the account's ledger: deposits, withdrawals, trades, settlements and rewards, newest first
-     * @see https://docs.calibri.io/api-reference/introduction
+     * @see https://docs.calibri.io/api-reference/endpoints/account/transaction-history
      * @param {string} [code] unified currency code
      * @param {int} [since] timestamp in ms of the earliest entry
      * @param {int} [limit] the maximum number of entries to return, 1-1000
@@ -3396,6 +3473,7 @@ export default class calibri extends Exchange {
      * @name calibri#fetchSettlements
      * @description fetches the account's settled markets: every market it held when the market resolved, including the losing ones, with the payout and the cost of the holding
      * @see https://docs.calibri.io/non-custodial/redeeming-winnings
+     * @see https://docs.calibri.io/api-reference/endpoints/positions/settled-markets
      * @param {string} [outcome] unified outcome handle to filter by
      * @param {int} [since] timestamp in ms of the earliest settlement
      * @param {int} [limit] the maximum number of settlements to return
@@ -3433,8 +3511,7 @@ export default class calibri extends Exchange {
         const result: any[] = [];
         for (let i = 0; i < response.length; i++) {
             const settlement = this.parseSettlement (response[i]);
-            const keep = (outcomeObj === undefined) || ((this.safeString (settlement, 'market') === this.safeString (outcomeObj, 'market')) && (this.safeString (settlement, 'outcome') === this.safeString (outcomeObj, 'outcome')));
-            if (keep) {
+            if ((outcomeObj === undefined) || (this.safeString (settlement, 'outcome') === this.safeString (outcomeObj, 'outcome'))) {
                 result.push (settlement);
             }
         }
@@ -3475,7 +3552,7 @@ export default class calibri extends Exchange {
             'outcome': this.safeString (outcomeObj, 'outcome'),
             'outcomeId': this.safeString (outcomeObj, 'outcomeId'),
             'market': this.safeString (outcomeObj, 'market'),
-            'event': this.safeString (settlement, 'event_slug'),
+            'event': this.shortenSlug (this.safeString (settlement, 'event_slug')),
             'result': this.safeStringUpper (settlement, 'result'),
             'won': (result === side),
             'amount': this.safeNumber (settlement, 'volume'),
@@ -3489,44 +3566,29 @@ export default class calibri extends Exchange {
     /**
      * @method
      * @name calibri#approve
-     * @description signs and relays the Safe's outstanding approvals (USDC and outcome tokens to the exchange) so it can trade; gasless, a no-op when the Safe is already ready
+     * @description signs and relays the Safe's one-time setup approvals so it can trade: USDC and outcome tokens to the exchange, an unlimited USDC allowance to the CalibriMatcher (which takes the taker fee in the match transaction) and the operator's USDC allowance set to zero; gasless, a no-op when the Safe is already set up. A passkey wallet (signature type 3) is set up in the Calibri app instead
      * @see https://docs.calibri.io/non-custodial/the-safe
+     * @see https://docs.calibri.io/api-reference/endpoints/wallet/ctf-wallet
+     * @see https://docs.calibri.io/api-reference/endpoints/wallet/relay-a-safe-transaction
      * @param {object} [params] extra parameters specific to the exchange API endpoint
-     * @param {string} [params.marketId] a market id to read the approvals from; any CTF-registered market works
-     * @param {float} [params.feeAllowance] whole USDC the operator may pull for taker fees, 201-100000, default options.operatorFeeAllowance
-     * @param {string} [params.rpcUrl] the rpc used to read the Safe nonce and the operator (default options.rpcUrl)
+     * @param {string} [params.rpcUrl] the rpc used to read the Safe nonce and the matcher (default options.rpcUrl)
      * @returns {object} { transactions } — the relay responses, one per approval
      */
     async approve (params: Dict = {}): Promise<Dict> {
-        let marketId = this.safeString (params, 'marketId');
-        if (marketId === undefined) {
-            await this.loadMarkets ();
-            let outcomesById: Dict = {};
-            if (this.outcomes_by_id !== undefined) {
-                outcomesById = this.outcomes_by_id;
-            }
-            const outcomeIds = Object.keys (outcomesById);
-            for (let i = 0; i < outcomeIds.length; i++) {
-                const candidate = this.safeDict (outcomesById, outcomeIds[i]);
-                if (this.isNumericString (this.safeString (candidate, 'outcomeId'))) {
-                    marketId = this.safeString (candidate, 'marketId');
-                    break;
-                }
-            }
-        }
-        if (marketId === undefined) {
-            throw new ArgumentsRequired (this.id + ' approve() requires params.marketId (no CTF-registered market is loaded)');
-        }
-        const config = await this.atlasPrivateGetAccountWalletMarketsId ({ 'id': marketId });
+        // ?setup=1 asks for the setup batch: refused with 409 wallet.deposit_required before the first deposit,
+        // wallet.deploying until the Safe exists and wallet.state_pending while a relayed transaction is not final yet
+        const config = await this.atlasPrivateGetAccountWallet (this.extend ({ 'setup': 1 }, this.omit (params, [ 'rpcUrl' ])));
         //
         //     {
+        //         "exchange_address": "0xA06be29A9077DA70c70601156aac9F2cE0E3b595",
         //         "proxy_address": "0xFFB7Cce73cF1346EA374C276320227BeA3996AcF",
         //         "chain_id": 137,
         //         "signature_type": 2,
+        //         "safe_status": "setup_required",
         //         "safe_setup": {
         //             "ready": false,
         //             "calls": [
-        //                 { "to": "0x3c49...", "data": "0x095ea7b3...", "operation": 0, "nonce": 0, "hash": "0x9ab1..." }
+        //                 { "to": "0xd092...", "data": "0x8d80ff0a...", "operation": 1, "nonce": 0, "hash": "0x9ab1..." }
         //             ]
         //         }
         //     }
@@ -3537,39 +3599,45 @@ export default class calibri extends Exchange {
         if (this.safeBool (setup, 'ready') === true) {
             return { 'transactions': results };
         }
-        const allowance = this.safeString (params, 'feeAllowance', this.safeString (this.options, 'operatorFeeAllowance', '1000')) as string;
-        if (Precise.stringLt (allowance, '201') || Precise.stringGt (allowance, '100000')) {
-            throw new BadRequest (this.id + ' approve() params.feeAllowance must be 201-100000 USDC');
+        // a passkey wallet's setup also switches the Safe's fallback handler (a call to the Safe itself), which this
+        // connector does not sign; the app's setup does both, and adding a signing key already goes through the app
+        if (this.safeInteger (config, 'signature_type') === 3) {
+            throw new AccountNotEnabled (this.id + ' approve() cannot set up a passkey wallet; finish wallet setup in the Calibri app (Wallet page, Finish setup), then retry');
         }
         const rpcUrl = this.safeString (params, 'rpcUrl', this.safeString (this.options, 'rpcUrl'));
         const exchangeAddress = this.safeString (this.options, 'exchangeAddress');
+        const matcherAddress = this.safeString (this.options, 'matcherAddress');
         const operatorAddress = this.safeString (this.options, 'operatorAddress');
         const usdcAddress = this.safeString (this.options, 'usdcAddress');
         const ctfAddress = this.safeString (this.options, 'conditionalTokensAddress');
-        // isOperator (operator) on the exchange: the fee allowance is only granted to a live operator
-        const isOperatorData = '0x6d70f7ae' + this.binaryToBase16 (this.ethAbiEncode ([ 'address' ], [ operatorAddress ]));
-        const isOperator = await this.ethRpc (rpcUrl, 'eth_call', [ { 'to': exchangeAddress, 'data': isOperatorData }, 'latest' ]);
-        if (!Precise.stringGt (this.numberToString (this.convertToBigInt (isOperator)), '0')) {
-            throw new ExchangeError (this.id + ' approve() options.operatorAddress ' + operatorAddress + ' is not an operator of the exchange');
+        // the matcher gets an unlimited allowance, so check it is an operator of the pinned exchange: isOperator (matcher)
+        const isOperatorData = '0x6d70f7ae' + this.binaryToBase16 (this.ethAbiEncode ([ 'address' ], [ matcherAddress ]));
+        const isOperator = await this.ethRpc ('' + rpcUrl, 'eth_call', [ { 'to': exchangeAddress, 'data': isOperatorData }, 'latest' ]);
+        if (this.remove0xPrefix (isOperator) !== '0000000000000000000000000000000000000000000000000000000000000001') {
+            throw new ExchangeError (this.id + ' approve() options.matcherAddress ' + matcherAddress + ' is not an operator of the exchange');
         }
         const maxUint = this.convertToBigInt ('115792089237316195423570985008687907853269984665640564039457584007913129639935');
-        const allowanceUnits = this.convertToBigInt (Precise.stringMul (allowance, '1000000') as string);
         const calls: Dict[] = [
-            // USDC approve (exchange, max): the exchange pulls collateral when an order fills
+            // approve (exchange, max)
             { 'to': usdcAddress, 'data': '0x095ea7b3' + this.binaryToBase16 (this.ethAbiEncode ([ 'address', 'uint256' ], [ exchangeAddress, maxUint ])) },
-            // ConditionalTokens setApprovalForAll (exchange, true): the exchange moves outcome tokens
+            // setApprovalForAll (exchange, true)
             { 'to': ctfAddress, 'data': '0xa22cb465' + this.binaryToBase16 (this.ethAbiEncode ([ 'address', 'uint256' ], [ exchangeAddress, this.convertToBigInt ('1') ])) },
-            // USDC approve (operator, allowance): the operator collects the taker fee at settlement
-            { 'to': usdcAddress, 'data': '0x095ea7b3' + this.binaryToBase16 (this.ethAbiEncode ([ 'address', 'uint256' ], [ operatorAddress, allowanceUnits ])) },
+            // approve (matcher, max)
+            { 'to': usdcAddress, 'data': '0x095ea7b3' + this.binaryToBase16 (this.ethAbiEncode ([ 'address', 'uint256' ], [ matcherAddress, maxUint ])) },
+            // approve (operator, 0)
+            { 'to': usdcAddress, 'data': '0x095ea7b3' + this.binaryToBase16 (this.ethAbiEncode ([ 'address', 'uint256' ], [ operatorAddress, this.convertToBigInt ('0') ])) },
         ];
-        const nonceHex = await this.ethRpc (rpcUrl, 'eth_call', [ { 'to': this.safeString (config, 'proxy_address'), 'data': '0xaffed0e0' }, 'latest' ]);
-        let nonce = 0;
-        if ((nonceHex !== undefined) && (nonceHex !== '0x')) {
-            nonce = this.parseToInt (this.convertToBigInt (nonceHex));
-        }
+        const nonceHex = await this.ethRpc ('' + rpcUrl, 'eth_call', [ { 'to': this.safeString (config, 'proxy_address'), 'data': '0xaffed0e0' }, 'latest' ]);
+        let nonce = this.readWordInteger (nonceHex);
         for (let i = 0; i < calls.length; i++) {
             const call = this.extend (calls[i], { 'nonce': this.numberToString (nonce) });
-            results.push (await this.relaySafeCall (config, call));
+            const relayed = await this.relaySafeCall (config, call);
+            results.push (relayed);
+            // the next call is signed at the next nonce, which only works once this one has executed
+            const status = this.safeString (relayed, 'status');
+            if ((status === 'reverted') || (this.safeString (relayed, 'tx') === undefined)) {
+                break;
+            }
             nonce = nonce + 1;
         }
         this.options['wallet'] = undefined;
@@ -3581,6 +3649,8 @@ export default class calibri extends Exchange {
      * @name calibri#redeem
      * @description redeems resolved winnings held in the Safe into USDC: signs a redeemPositions call per market and relays it gaslessly
      * @see https://docs.calibri.io/non-custodial/redeeming-winnings
+     * @see https://docs.calibri.io/api-reference/endpoints/wallet/redeemable-winnings
+     * @see https://docs.calibri.io/api-reference/endpoints/wallet/relay-a-safe-transaction
      * @param {string} [outcome] unified outcome handle of the resolved market to redeem; every redeemable market when omitted
      * @param {object} [params] extra parameters specific to the exchange API endpoint
      * @param {string} [params.rpcUrl] the rpc used to read the Safe nonce (default options.rpcUrl)
@@ -3595,7 +3665,7 @@ export default class calibri extends Exchange {
         const response = await this.atlasPrivateGetAccountWalletRedeemable ();
         //
         //     {
-        //         "conditional_tokens_address": "0x4D97DCd97eC945f40cF65F87097ACe5EA0476045",
+        //         "conditional_tokens_address": "0x53aB2e11ea7a7e90a11F002FAa859124729611F4",
         //         "usdc_address": "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
         //         "proxy_address": "0xFFB7Cce73cF1346EA374C276320227BeA3996AcF",
         //         "chain_id": 137,
@@ -3625,11 +3695,8 @@ export default class calibri extends Exchange {
         }
         this.checkWalletConfig (response);
         const rpcUrl = this.safeString (params, 'rpcUrl', this.safeString (this.options, 'rpcUrl'));
-        const nonceHex = await this.ethRpc (rpcUrl, 'eth_call', [ { 'to': this.safeString (response, 'proxy_address'), 'data': '0xaffed0e0' }, 'latest' ]);
-        let nonce = 0;
-        if ((nonceHex !== undefined) && (nonceHex !== '0x')) {
-            nonce = this.parseToInt (this.convertToBigInt (nonceHex));
-        }
+        const nonceHex = await this.ethRpc ('' + rpcUrl, 'eth_call', [ { 'to': this.safeString (response, 'proxy_address'), 'data': '0xaffed0e0' }, 'latest' ]);
+        let nonce = this.readWordInteger (nonceHex);
         const ctf = this.safeString (this.options, 'conditionalTokensAddress');
         const usdc = this.remove0xPrefix (this.safeStringLower (this.options, 'usdcAddress'));
         for (let i = 0; i < wantedLength; i++) {
@@ -3641,6 +3708,10 @@ export default class calibri extends Exchange {
             const call: Dict = { 'to': ctf, 'data': data, 'nonce': this.numberToString (nonce) };
             const relayed = await this.relaySafeCall (response, call);
             results.push (this.extend ({ 'market_id': this.safeString (wanted[i], 'market_id') }, relayed));
+            // the next redemption is signed at the next nonce, which only works once this one has executed
+            if ((this.safeString (relayed, 'status') === 'reverted') || (this.safeString (relayed, 'tx') === undefined)) {
+                break;
+            }
             nonce = nonce + 1;
         }
         return { 'transactions': results };
@@ -3707,17 +3778,22 @@ export default class calibri extends Exchange {
             'data': data,
             'operation': 0,
             'signature': signature.toLowerCase (),
+            // the nonce the signature was made at; a signature over a different nonce is refused with 422 relay.nonce_mismatch
+            'nonce': nonce,
         };
         const response = await this.atlasPrivatePostAccountWalletRelay (request);
         //
-        //     { "tx": "0x979a3c3b3d05e78ff0607ff27b97138bef3f1b2214bbd88eee6e3b65795c8075" }
+        //     { "tx": "0x979a3c3b3d05e78ff0607ff27b97138bef3f1b2214bbd88eee6e3b65795c8075", "status": "mined", "state": "pending", "relay_id": "1842" }
         //
-        return response;
+        // a 202 (sent, outcome not known yet) wraps its body in data
+        //
+        //     { "data": { "relay_id": "1842", "state": "pending", "tx": null } }
+        //
+        return this.safeDict (response, 'data', response);
     }
 
     override nonce (): number {
-        // the HMAC nonce is milliseconds and must be within 10 s of server time; loadTimeDifference ()
-        // (or options.adjustForTimeDifference) corrects a skewed local clock
+        // the HMAC nonce must be within 10 s of server time; timeDifference corrects a skewed clock
         return this.milliseconds () - this.safeInteger (this.options, 'timeDifference', 0);
     }
 
@@ -3791,8 +3867,7 @@ export default class calibri extends Exchange {
         }
         if (access === 'private') {
             this.checkRequiredCredentials ();
-            const nonceValue = this.incrementingNonce ();
-            const nonceString = this.numberToString (nonceValue);
+            const nonceString = this.incrementingNonce ().toString ();
             let auth = nonceString + this.apiKey + method + requestPath;
             if (requestBody !== undefined) {
                 auth = auth + requestBody;
@@ -3824,7 +3899,6 @@ export default class calibri extends Exchange {
      */
     async watchStream (stream: string, messageHash: string, isPrivate = false): Promise<any> {
         const url = this.wsUrl (isPrivate);
-        // the watch methods send no params with a subscription, as in polymarket
         const request: Dict = {
             'event': 'subscribe',
             'streams': [ stream ],
@@ -3868,26 +3942,21 @@ export default class calibri extends Exchange {
         }
         this.checkRequiredCredentials ();
         const path = '/api/' + this.version + '/websocket/private';
-        const nonceString = this.numberToString (this.nonce ());
+        const nonceString = this.nonce ().toString ();
         const auth = nonceString + this.apiKey + 'GET' + path;
         const signature = this.hmac (this.encode (auth), this.encode (this.secret), sha256, 'hex');
-        const defaultOptions: Dict = {
-            'ws': {
-                'options': {
-                    'headers': {},
-                },
-            },
-        };
-        this.extendExchangeOptions (defaultOptions);
-        const originalHeaders = this.options['ws']['options']['headers'];
         const headers: Dict = {
             'X-Auth-Apikey': this.apiKey,
             'X-Auth-Nonce': nonceString,
             'X-Auth-Signature': signature,
         };
-        this.options['ws']['options']['headers'] = headers;
+        // the client keeps a reference to the options it is created with, so it gets its own
+        // copies and the shared ones are put back untouched
+        const originalWs = this.safeDict (this.options, 'ws', {});
+        const clientOptions = this.extend (this.safeDict (originalWs, 'options', {}), { 'headers': headers });
+        this.options['ws'] = this.extend (originalWs, { 'options': clientOptions });
         this.client (url);
-        this.options['ws']['options']['headers'] = originalHeaders;
+        this.options['ws'] = originalWs;
     }
 
     override handleMessage (client: any, message: any) {
@@ -3959,24 +4028,36 @@ export default class calibri extends Exchange {
      * @description streams the order book of an outcome
      * @see https://docs.calibri.io/api-reference/websockets
      * @param {string} outcome unified outcome handle, token id or "{market_id}:yes|no"
-     * @param {int} [limit] the maximum number of levels per side
-     * @param {object} [params] extra parameters specific to the exchange API endpoint
+     * @param {int} [limit] not used by calibri watchOrderBook
+     * @param {object} [params] not used by calibri watchOrderBook
      * @returns {object} a [prediction order book structure](https://docs.ccxt.com/#/?id=prediction-order-book-structure)
      */
     override async watchOrderBook (outcome: string, limit: Int = undefined, params: Dict = {}): Promise<PredictionOrderBook> {
         const outcomeObj = await this.loadOutcome (outcome);
         const handle = this.safeString (outcomeObj, 'outcome') as string;
         const stream = this.safeString (outcomeObj, 'marketId') + '.ob-inc';
-        // the YES and NO books come from one stream, and only a subscribe delivers its snapshot:
-        // once either side is subscribed, the other book is already built
+        // one stream carries both books and only a subscribe delivers the snapshot; the other side may already be built
         const client = this.client (this.wsUrl ());
+        const resync = this.safeDict (this.options, 'wsBooksResync', {});
+        if (this.safeBool (resync, stream) === true) {
+            delete resync[stream];
+            this.options['wsBooksResync'] = resync;
+            const unsubscribe: Dict = {
+                'event': 'unsubscribe',
+                'streams': [ stream ],
+            };
+            await client.send (unsubscribe);
+        }
+        const returned = this.safeDict (this.options, 'wsBooksReturned', {});
         let orderbook: any = undefined;
-        if ((this.safeValue (client.subscriptions, stream) !== undefined) && (handle in this.orderbooks)) {
+        const subscribed = (this.safeValue (client.subscriptions, stream) !== undefined);
+        if (subscribed && (handle in this.orderbooks) && !(handle in returned)) {
             orderbook = this.orderbooks[handle];
         } else {
             orderbook = await this.watchStream (stream, 'orderbook::' + handle);
         }
-        // limit and params are not applied, as in polymarket
+        returned[handle] = true;
+        this.options['wsBooksReturned'] = returned;
         return orderbook.limit ();
     }
 
@@ -3998,10 +4079,17 @@ export default class calibri extends Exchange {
             const previous = this.safeInteger (orderbook, 'nonce');
             const sequence = this.safeInteger (data, 'sequence');
             if ((previous !== undefined) && (sequence !== undefined) && (sequence !== previous + 1)) {
-                // a skipped sequence leaves the book stale; subscribing again delivers a fresh snapshot
+                // a skipped or lower sequence leaves the book stale; the server sends nothing for a repeated subscribe,
+                // so the next watchOrderBook unsubscribes first and then subscribes for a fresh snapshot
                 delete this.orderbooks[yesHandle];
                 delete this.orderbooks[noHandle];
                 delete client.subscriptions[stream];
+                const resync = this.safeDict (this.options, 'wsBooksResync', {});
+                resync[stream] = true;
+                this.options['wsBooksResync'] = resync;
+                const returned = this.safeDict (this.options, 'wsBooksReturned', {});
+                delete returned[yesHandle];
+                delete returned[noHandle];
                 const error = new InvalidNonce (this.id + ' order book ' + stream + ' skipped from sequence ' + this.numberToString (previous) + ' to ' + this.numberToString (sequence));
                 client.reject (error, 'orderbook::' + yesHandle);
                 client.reject (error, 'orderbook::' + noHandle);
@@ -4082,7 +4170,7 @@ export default class calibri extends Exchange {
      * @param {string} outcome unified outcome handle, token id or "{market_id}:yes|no"
      * @param {int} [since] timestamp in ms of the earliest trade
      * @param {int} [limit] the maximum number of trades to return
-     * @param {object} [params] extra parameters specific to the exchange API endpoint
+     * @param {object} [params] not used by calibri watchTrades
      * @returns {object[]} a list of [prediction trade structures](https://docs.ccxt.com/#/?id=prediction-trade-structure)
      */
     override async watchTrades (outcome: string, since: Int = undefined, limit: Int = undefined, params: Dict = {}): Promise<PredictionTrade[]> {
@@ -4128,7 +4216,7 @@ export default class calibri extends Exchange {
      * @description streams the 24h ticker of an outcome
      * @see https://docs.calibri.io/api-reference/websockets
      * @param {string} outcome unified outcome handle, token id or "{market_id}:yes|no"
-     * @param {object} [params] extra parameters specific to the exchange API endpoint
+     * @param {object} [params] not used by calibri watchTicker
      * @returns {object} a [prediction ticker structure](https://docs.ccxt.com/#/?id=prediction-ticker-structure)
      */
     override async watchTicker (outcome: string, params: Dict = {}): Promise<PredictionTicker> {
@@ -4144,7 +4232,7 @@ export default class calibri extends Exchange {
      * @description streams the 24h tickers of several outcomes
      * @see https://docs.calibri.io/api-reference/websockets
      * @param {string[]} outcomes unified outcome handles
-     * @param {object} [params] extra parameters specific to the exchange API endpoint
+     * @param {object} [params] not used by calibri watchTickers
      * @returns {object} a dictionary of [prediction ticker structures](https://docs.ccxt.com/#/?id=prediction-ticker-structure) keyed by outcome
      */
     override async watchTickers (outcomes: Strings = undefined, params: Dict = {}): Promise<PredictionTickers> {
@@ -4201,7 +4289,7 @@ export default class calibri extends Exchange {
      * @param {string} [timeframe] the candle length, 1m to 1w
      * @param {int} [since] timestamp in ms of the earliest candle
      * @param {int} [limit] the maximum number of candles to return
-     * @param {object} [params] extra parameters specific to the exchange API endpoint
+     * @param {object} [params] not used by calibri watchOHLCV
      * @returns {int[][]} a list of candles ordered as timestamp, open, high, low, close, volume
      */
     override async watchOHLCV (outcome: string, timeframe = '1m', since: Int = undefined, limit: Int = undefined, params: Dict = {}): Promise<OHLCV[]> {
@@ -4253,7 +4341,7 @@ export default class calibri extends Exchange {
      * @param {string} [outcome] unified outcome handle to filter by
      * @param {int} [since] timestamp in ms of the earliest order
      * @param {int} [limit] the maximum number of orders to return
-     * @param {object} [params] extra parameters specific to the exchange API endpoint
+     * @param {object} [params] not used by calibri watchOrders
      * @returns {object[]} a list of [prediction order structures](https://docs.ccxt.com/#/?id=prediction-order-structure)
      */
     override async watchOrders (outcome: Str = undefined, since: Int = undefined, limit: Int = undefined, params: Dict = {}): Promise<PredictionOrder[]> {
@@ -4289,7 +4377,7 @@ export default class calibri extends Exchange {
             const limit = this.safeInteger (this.options, 'ordersLimit', 1000);
             this.orders = new ArrayCacheByOutcomeById (limit);
         }
-        // an update frame carries only what changed: merge it into the order as last seen
+        // order updates contain only changed fields
         const id = this.safeString (data, 'id') as string;
         const seen = this.safeDict (this.options, 'wsOrderFrames', {});
         const merged = this.extend (this.safeDict (seen, id, {}), data);
@@ -4318,7 +4406,7 @@ export default class calibri extends Exchange {
      * @param {string} [outcome] unified outcome handle to filter by
      * @param {int} [since] timestamp in ms of the earliest fill
      * @param {int} [limit] the maximum number of fills to return
-     * @param {object} [params] extra parameters specific to the exchange API endpoint
+     * @param {object} [params] not used by calibri watchMyTrades
      * @returns {object[]} a list of [prediction trade structures](https://docs.ccxt.com/#/?id=prediction-trade-structure)
      */
     override async watchMyTrades (outcome: Str = undefined, since: Int = undefined, limit: Int = undefined, params: Dict = {}): Promise<PredictionTrade[]> {
@@ -4378,7 +4466,7 @@ export default class calibri extends Exchange {
      * @param {string[]} [outcomes] unified outcome handles to filter by
      * @param {int} [since] timestamp in ms of the earliest update
      * @param {int} [limit] the maximum number of positions to return
-     * @param {object} [params] extra parameters specific to the exchange API endpoint
+     * @param {object} [params] not used by calibri watchPositions
      * @returns {object[]} a list of [prediction position structures](https://docs.ccxt.com/#/?id=prediction-position-structure)
      */
     override async watchPositions (outcomes: Strings = undefined, since: Int = undefined, limit: Int = undefined, params: Dict = {}): Promise<PredictionPosition[]> {
@@ -4390,11 +4478,11 @@ export default class calibri extends Exchange {
                 handles.push (this.safeString (outcomeObj, 'outcome') as string);
             }
         }
-        const positions = await this.watchStream ('position', 'positions', true);
+        const newPositions = await this.watchStream ('position', 'positions', true);
         if (this.newUpdates) {
-            return positions;
+            return this.filterByOutcomesSinceLimit (newPositions, handles, since, limit, true) as PredictionPosition[];
         }
-        return this.filterByOutcomesSinceLimit (positions, handles, since, limit, true) as PredictionPosition[];
+        return this.filterByOutcomesSinceLimit (this.positions, handles, since, limit, true) as PredictionPosition[];
     }
 
     handlePosition (client: any, data: Dict) {
@@ -4417,6 +4505,6 @@ export default class calibri extends Exchange {
         const position = this.parsePredictionPosition (data);
         const stored = this.positions;
         stored.append (position);
-        client.resolve (stored, 'positions');
+        client.resolve ([ position ], 'positions');
     }
 }
